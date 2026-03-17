@@ -1,0 +1,442 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Brief SEO amélioration v3",
+  "description": "Schema de données pour la génération standardisée d'un brief SEO d'amélioration de contenu existant. Ce JSON est le contrat entre la pipeline d'extraction (Phase 1-2) et le rendu final (Phase 3).",
+  "type": "object",
+  "required": ["meta", "contexte", "diagnostic", "actions", "title_meta", "structure_hn", "technique"],
+  "properties": {
+
+    "meta": {
+      "description": "Métadonnées du brief — contexte d'exécution",
+      "type": "object",
+      "required": ["url_cible", "domaine", "propriete_gsc", "pays", "langue", "date_generation", "version_sop"],
+      "properties": {
+        "url_cible": { "type": "string", "format": "uri" },
+        "domaine": { "type": "string" },
+        "propriete_gsc": { "type": "string" },
+        "pays": { "type": "string", "default": "FR" },
+        "langue": { "type": "string", "default": "fr" },
+        "date_generation": { "type": "string", "format": "date" },
+        "version_sop": { "type": "string", "default": "3.0" },
+        "consultant": { "type": "string" }
+      }
+    },
+
+    "contexte": {
+      "description": "Contexte éditorial — guide le ton et le niveau du brief pour le rédacteur",
+      "type": "object",
+      "properties": {
+        "persona_cible": { "type": "string", "description": "Profil lecteur type : qui lit cette page, quel besoin, quel niveau (ex: Débutant en bricolage, cherche des solutions rapides)" },
+        "tone_of_voice": { "type": "string", "description": "Ton de la marque à respecter (ex: Didactique, rassurant, tutoiement)" },
+        "niveau_technique": { "type": "string", "enum": ["vulgarise", "intermediaire", "expert"], "description": "Niveau de langage attendu dans le contenu" },
+        "contraintes_marque": { "type": "string", "description": "Contraintes spécifiques : vouvoiement/tutoiement, termes interdits, charte éditoriale, etc." }
+      }
+    },
+
+    "diagnostic": {
+      "description": "Synthèse diagnostic Phase 2 — alimente l'intro executive du brief",
+      "type": "object",
+      "required": ["mc_principal", "position", "ctr_moyen", "gap_keywords_count", "gap_volume_cumule", "verdict", "recommandation_machine"],
+      "properties": {
+        "mc_principal": {
+          "type": "object",
+          "required": ["keyword", "volume", "cpc", "position", "intention"],
+          "properties": {
+            "keyword": { "type": "string" },
+            "volume": { "type": "integer" },
+            "cpc": { "type": "number" },
+            "position": { "type": "number" },
+            "intention": { "type": "string", "enum": ["informational", "transactional", "navigational", "commercial", "mixed"] }
+          }
+        },
+        "position": { "type": "number", "description": "Position Haloscan MC principal" },
+        "ctr_moyen": { "type": "number", "description": "CTR moyen pondéré de l'URL sur TOUTES les requêtes (GSC), pas le CTR d'un seul keyword. En %." },
+        "saisonnalite": {
+          "type": "object",
+          "properties": {
+            "est_saisonniere": { "type": "boolean" },
+            "ratio_pic_creux": { "type": "number" },
+            "mois_pic": { "type": "string" },
+            "mois_creux": { "type": "string" }
+          }
+        },
+        "gap_keywords_count": { "type": "integer", "description": "Nombre de gap keywords validés post-cannibalisation" },
+        "gap_volume_cumule": { "type": "integer" },
+        "entites_manquantes_count": { "type": "integer" },
+        "cannibalisation": {
+          "type": "object",
+          "properties": {
+            "conflits_detectes": { "type": "integer" },
+            "keywords_exclus": { "type": "integer" }
+          }
+        },
+        "featured_snippet": {
+          "type": "object",
+          "properties": {
+            "statut": { "type": "string", "enum": ["absent_opportunite", "present_concurrent", "capture", "non_pertinent"] },
+            "format_recommande": { "type": "string", "enum": ["paragraphe", "liste", "tableau", "na"] }
+          }
+        },
+        "volatilite_serp": { "type": "string", "enum": ["stable", "moderee", "forte"] },
+        "intent_match": {
+          "type": "string",
+          "enum": ["ok", "vigilance", "alerte_pivot"],
+          "description": "Correspondance entre le type de notre page et l'intention SERP dominante"
+        },
+        "eeat_gaps_count": { "type": "integer", "description": "Signaux E-E-A-T manquants vs concurrents" },
+        "cwv_performance": { "type": "integer", "description": "Score Lighthouse Performance /100" },
+        "delta_mots_vs_concurrent1": { "type": "integer", "description": "Positif = on a plus, négatif = on a moins" },
+        "anomalies_ctr_count": { "type": "integer", "description": "Requêtes avec CTR < 2% et impressions > 100" },
+        "verdict": {
+          "type": "string",
+          "enum": ["auto_skip_faible", "auto_skip_fort", "validation_humaine"],
+          "description": "Décision pipeline : auto-skip ou pause humaine"
+        },
+        "recommandation_machine": {
+          "type": "string",
+          "description": "Synthèse 2-4 phrases, lisible par un humain en 15 secondes"
+        }
+      }
+    },
+
+    "actions": {
+      "description": "Liste ordonnée des recommandations priorisées — cœur du brief rédactionnel",
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["id", "action", "angle_intention", "type_action", "impact", "effort", "priorite"],
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 },
+          "action": { "type": "string", "description": "Nom court de l'action (ex: Ajouter section prix comparatif)" },
+          "angle_intention": { "type": "string", "description": "Comment aborder le sujet + format SERP attendu. Ne JAMAIS laisser vide." },
+          "type_action": { "type": "string", "enum": ["contenu", "meta", "structure", "featured_snippet", "eeat", "technique"] },
+          "mots_ajoutes": { "type": "integer", "default": 0 },
+          "impact": { "type": "string", "enum": ["fort", "moyen", "faible"] },
+          "effort": { "type": "string", "enum": ["fort", "moyen", "faible"] },
+          "priorite": { "type": "string", "enum": ["P0", "P1", "P2"] },
+          "emplacement": { "type": "string", "description": "Où dans la page (après quel H2/H3)" },
+          "directive": { "type": "string", "description": "Ce qu'il faut faire concrètement, max 3 phrases" },
+          "keywords_cibles": { "type": "array", "items": { "type": "string" } },
+          "entites_a_mentionner": { "type": "array", "items": { "type": "string" } },
+          "justification_data": { "type": "string", "description": "Pourquoi cette action — gap kw, entité, PAA, CTR" },
+          "ref_concurrent_url": { "type": "string", "format": "uri", "description": "URL du concurrent qui fait bien cette chose — le rédacteur voit l'exemple concret" },
+          "ref_concurrent_note": { "type": "string", "description": "Ce qu'il faut observer chez le concurrent et en quoi faire mieux (ex: Ils ont un tableau prix mais sans sources — ajouter les sources)" }
+        }
+      }
+    },
+
+    "title_meta": {
+      "description": "Propositions title et meta description",
+      "type": "object",
+      "required": ["title_actuel", "title_propose", "meta_actuelle", "meta_proposee"],
+      "properties": {
+        "title_actuel": { "type": "string" },
+        "title_longueur_actuelle": { "type": "integer" },
+        "title_propose": { "type": "string" },
+        "title_longueur_proposee": { "type": "integer" },
+        "title_justification": { "type": "string" },
+        "meta_actuelle": { "type": "string" },
+        "meta_longueur_actuelle": { "type": "integer" },
+        "meta_proposee": { "type": "string" },
+        "meta_longueur_proposee": { "type": "integer" },
+        "meta_justification": { "type": "string" }
+      }
+    },
+
+    "structure_hn": {
+      "description": "Structure Hn recommandée avec diff vs actuelle",
+      "type": "object",
+      "required": ["actuelle", "recommandee"],
+      "properties": {
+        "actuelle": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "niveau": { "type": "integer", "minimum": 1, "maximum": 6 },
+              "texte": { "type": "string" }
+            }
+          }
+        },
+        "recommandee": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "niveau": { "type": "integer", "minimum": 1, "maximum": 6 },
+              "texte": { "type": "string" },
+              "statut": { "type": "string", "enum": ["inchange", "modifie", "ajout", "supprime"] }
+            }
+          }
+        }
+      }
+    },
+
+    "faq": {
+      "description": "FAQ recommandée issue des PAA",
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["question", "reponse_preecrite"],
+        "properties": {
+          "question": { "type": "string" },
+          "reponse_preecrite": { "type": "string", "maxLength": 600, "description": "50-100 mots max" },
+          "volume": { "type": "integer" },
+          "source": { "type": "string", "enum": ["paa", "keywords_questions", "gap_analysis"] }
+        }
+      }
+    },
+
+    "assets_recommandes": {
+      "description": "Assets média à créer ou intégrer — comble le gap multimédia vs concurrents",
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["type_asset", "action", "justification"],
+        "properties": {
+          "type_asset": { "type": "string", "enum": ["image", "video", "tableau", "calculateur", "infographie", "pdf", "carte", "schema_visuel"] },
+          "action": { "type": "string", "enum": ["creer", "embed", "optimiser_existant"] },
+          "description": { "type": "string", "description": "Ce que l'asset doit montrer/faire concrètement" },
+          "emplacement": { "type": "string", "description": "Où dans la page (après quel H2/H3)" },
+          "ref_concurrent": { "type": "string", "format": "uri", "description": "URL du concurrent qui a cet asset — exemple concret pour le rédacteur" },
+          "justification": { "type": "string", "description": "Pourquoi cet asset : présent chez X concurrents, format favorisé par Google, etc." }
+        }
+      }
+    },
+
+    "angles_uniques": {
+      "description": "Propositions de contenu différenciant — angles non couverts par les concurrents, liés au persona. Section optionnelle. Ce sont des suggestions, pas des directives : le rédacteur décide s'il les intègre.",
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["angle", "persona_lien"],
+        "properties": {
+          "angle": { "type": "string", "description": "L'angle de contenu proposé — ce qui manque dans la SERP et que notre page pourrait apporter" },
+          "persona_lien": { "type": "string", "description": "Pourquoi cet angle parle au persona cible (particulier curieux / acheteur potentiel)" },
+          "justification": { "type": "string", "description": "Constat factuel : absent chez X/Y concurrents, question non traitée dans les PAA, etc." },
+          "format_suggere": { "type": "string", "description": "Format recommandé (encadré, paragraphe, tableau, témoignage, exemple concret...)" }
+        }
+      }
+    },
+
+    "ne_pas_toucher": {
+      "description": "Éléments à préserver — filet de sécurité",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "element": { "type": "string" },
+          "raison": { "type": "string" }
+        }
+      }
+    },
+
+    "technique": {
+      "description": "Brief technique — onglet 2",
+      "type": "object",
+      "properties": {
+        "schemas_recommandes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type_schema": { "type": "string" },
+              "champs_cles": { "type": "array", "items": { "type": "string" } },
+              "action": { "type": "string", "enum": ["ajouter", "modifier", "conserver"] }
+            }
+          }
+        },
+        "cwv_leviers_editoriaux": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "probleme": { "type": "string" },
+              "action": { "type": "string" },
+              "metrique_impactee": { "type": "string", "enum": ["cls", "lcp", "general"] }
+            }
+          }
+        },
+        "alertes_dev": {
+          "type": "array",
+          "description": "Problèmes hors périmètre éditorial à remonter à l'équipe technique",
+          "items": {
+            "type": "object",
+            "properties": {
+              "probleme": { "type": "string" },
+              "metrique": { "type": "string" },
+              "valeur": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "metriques_succes": {
+      "description": "KPI de suivi post-publication",
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["objectif", "metrique", "cible", "delai"],
+        "properties": {
+          "objectif": { "type": "string" },
+          "metrique": { "type": "string" },
+          "cible": { "type": "string" },
+          "delai": { "type": "string" }
+        }
+      }
+    },
+
+    "donnees_brutes": {
+      "description": "Données d'extraction Phase 1 complètes — annexe, pas dans le brief principal. Stockées pour traçabilité et ré-exploitation.",
+      "type": "object",
+      "properties": {
+        "fiche_technique_page": {
+          "type": "object",
+          "description": "Livrable 1a complet. DOIT contenir les htags bruts (texte exact) pour traçabilité.",
+          "required": ["htags_bruts", "htags_source"],
+          "properties": {
+            "htags_bruts": {
+              "type": "array",
+              "description": "Liste ordonnée des headings éditoriaux extraits (template exclu). Chaque entrée = {niveau, texte} tel que retourné par le scraping. C'est la preuve vérifiable du plan réel de la page au moment du brief.",
+              "items": {
+                "type": "object",
+                "required": ["niveau", "texte"],
+                "properties": {
+                  "niveau": { "type": "integer", "minimum": 1, "maximum": 6 },
+                  "texte": { "type": "string" }
+                }
+              }
+            },
+            "htags_source": {
+              "type": "string",
+              "enum": ["chrome_js", "dataforseo_instant_pages", "dataforseo_content_parsing", "curl_html"],
+              "description": "Méthode utilisée pour extraire les htags. Permet d'évaluer la fiabilité."
+            },
+            "htags_avertissement": {
+              "type": "string",
+              "description": "Avertissement si les htags sont potentiellement incomplets (ex: rendu JS, < 3 H2 éditoriaux)"
+            }
+          }
+        },
+        "performance_gsc": { "type": "object", "description": "Livrable 1b complet — requêtes, saisonnalité" },
+        "fiche_keyword_mc": { "type": "object", "description": "Livrable 1c complet — SERP, PAA" },
+        "gap_analysis": {
+          "type": "object",
+          "description": "Livrable 1d complet — gap kw, entités. DOIT contenir les données brutes pour traçabilité.",
+          "properties": {
+            "gap_keywords": {
+              "type": "array",
+              "description": "Liste des gap keywords identifiés. Chaque entrée doit indiquer sa source outil.",
+              "items": {
+                "type": "object",
+                "required": ["keyword", "volume", "source_outil", "source_url_concurrent"],
+                "properties": {
+                  "keyword": { "type": "string" },
+                  "volume": { "type": "integer" },
+                  "cpc": { "type": "number" },
+                  "source_outil": {
+                    "type": "string",
+                    "enum": ["haloscan_page_best_keywords", "haloscan_keywords_highlights", "haloscan_find_keywords", "dataforseo_page_intersection"],
+                    "description": "Outil qui a retourné ce keyword. Traçabilité."
+                  },
+                  "source_url_concurrent": {
+                    "type": "string",
+                    "description": "URL du concurrent chez qui ce keyword a été trouvé. Vide si source non liée à un concurrent spécifique."
+                  }
+                }
+              }
+            },
+            "entites_manquantes": {
+              "type": "array",
+              "description": "Entités identifiées chez les concurrents et absentes de notre page.",
+              "items": {
+                "type": "object",
+                "required": ["entite", "present_chez", "source_type"],
+                "properties": {
+                  "entite": { "type": "string" },
+                  "present_chez": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "URLs des concurrents chez qui l'entité a été trouvée."
+                  },
+                  "source_type": {
+                    "type": "string",
+                    "enum": ["contenu_scrape", "title_description_serp", "keywords_concurrent"],
+                    "description": "Comment l'entité a été identifiée. 'contenu_scrape' = trouvée dans le texte scrapé. 'title_description_serp' = déduite du title/description SERP (dégradé). 'keywords_concurrent' = déduite des keywords du concurrent (dégradé)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "serp_features": { "type": "object", "description": "Livrable 1e complet" },
+        "cwv_lighthouse": { "type": "object", "description": "Livrable 1f complet" },
+        "structure_concurrents": {
+          "type": "object",
+          "description": "Livrable 1g complet — structure Hn + E-E-A-T des 3 concurrents. DOIT contenir les données brutes pour traçabilité.",
+          "properties": {
+            "concurrents": {
+              "type": "array",
+              "maxItems": 3,
+              "description": "Données brutes pour chaque concurrent scrapé.",
+              "items": {
+                "type": "object",
+                "required": ["url", "scraping_statut"],
+                "properties": {
+                  "url": { "type": "string" },
+                  "scraping_statut": {
+                    "type": "string",
+                    "enum": ["ok", "partiel", "echec"],
+                    "description": "ok = scraping complet. partiel = htags ou contenu incomplet. echec = scraping échoué, données SERP uniquement."
+                  },
+                  "htags_bruts": {
+                    "type": "array",
+                    "description": "Headings bruts retournés par on_page_instant_pages (non filtrés, tels quels). Permet de vérifier si les htags sont du contenu ou du template.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "niveau": { "type": "integer", "minimum": 1, "maximum": 6 },
+                        "texte": { "type": "string" }
+                      }
+                    }
+                  },
+                  "nombre_mots": { "type": "integer", "description": "plain_text_word_count retourné par DataForSEO (inclut template)." },
+                  "eeat_signaux": {
+                    "type": "array",
+                    "description": "Signaux E-E-A-T observés. Chaque signal doit indiquer sa source.",
+                    "items": {
+                      "type": "object",
+                      "required": ["signal", "source"],
+                      "properties": {
+                        "signal": {
+                          "type": "string",
+                          "description": "Ex: 'auteur identifié', 'sources citées', 'date mise à jour visible'"
+                        },
+                        "valeur": {
+                          "type": "string",
+                          "description": "Détail concret. Ex: 'Benoit Ginet, rédacteur auto' ou '3 liens externes vers Legifrance, Wikipedia'"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": ["contenu_scrape", "meta_tags", "title_description_serp"],
+                          "description": "D'où vient l'observation. 'contenu_scrape' = vu dans le HTML/texte scrapé. 'meta_tags' = déduit des meta tags (twitter:data1, og:author). 'title_description_serp' = déduit du title/description SERP (le plus dégradé)."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "cannibalisation": { "type": "object", "description": "Livrable 1h complet" }
+      }
+    }
+  }
+}
