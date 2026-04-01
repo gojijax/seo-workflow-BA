@@ -1,0 +1,12 @@
+# Credentials et secrets
+.env
+*.env
+.env.local
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Claude Code local
+.claude/settings.local.json
+.claude/worktrees/
